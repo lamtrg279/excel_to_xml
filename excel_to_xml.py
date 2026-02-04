@@ -1,28 +1,20 @@
 import tkinter as tk
+import os
 from tkinter import filedialog, messagebox
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
 
-
-standard_columns = df.columns[:7]
-jobPart_columns = df.columns[21:]
-contact_columns = df.columns[7:21]
-
-
 # JobShipment Section
-def row_to_xml(parent, row, contact_id):
+def row_to_xml(parent, row, contact_id, standard_columns, jobPart_columns):
     element = ET.SubElement(parent, "JobShipment")
 
     job = ET.SubElement(element, "job")
     job.text = str(row["job"])
 
     for col in standard_columns:
-        # Create XML tag
         child = ET.SubElement(element, col)
-        # Get text value, handling NaN values
         value = row.get(col)
-        # Set text, converting NaN to empty string
         child.text = "" if pd.isna(value) else str(value) 
     
     shipment_contact = ET.SubElement(element, "contactNumber", id=contact_id)
@@ -36,60 +28,32 @@ def row_to_xml(parent, row, contact_id):
     add_default_content = ET.SubElement(carton, "addDefaultContent")
     add_default_content.text = "false"
     carton_contents = ET.SubElement(carton, "CartonContents")
+
     for col in jobPart_columns:
-        carton_content = ET.SubElement(carton_contents, "CartonContent")
         value = col 
         qty = row[value]
-        # if pd.isna(qty):
-        #     continue
-        jobpart = ET.SubElement(carton_content, "jobPart")
-        jobpart.text = str(value)
-        quantity = ET.SubElement(carton_content, "quantity")
-        quantity.text = str(qty)
-        jobpart_job = ET.SubElement(carton_content, "jobPartJob")
-        jobpart_job.text = str(row["job"])
+        if not pd.isna(qty) and qty != 0:
+            carton_content = ET.SubElement(carton_contents, "CartonContent")
+            jobpart = ET.SubElement(carton_content, "jobPart")
+            jobpart.text = str(value)
+            quantity = ET.SubElement(carton_content, "quantity")
+            quantity.text = "" if pd.isna(qty) else str(qty)
+            jobpart_job = ET.SubElement(carton_content, "jobPartJob")
+            jobpart_job.text = str(row["job"])
     return element
 
-    # jobcontacts = ET.SubElement(element, "JobContacts")
-    # jobcontact = ET.SubElement(jobcontacts, "JobContact", id="contact01")
-    # jobcontact_job = ET.SubElement(jobcontact, "job")
-    # jobcontact_job.text = str(row["job"])
-    # billto = ET.SubElement(jobcontact, "billTo")
-    # billto.text = str(row["billTo"])
-    # shipto = ET.SubElement(jobcontact, "shipTo")
-    # shipto.text = str(row["shipTo"])
-    # jobcontact_contact = ET.SubElement(jobcontact, "contact", id="1")
-
 # Contacts Section
-contacts = ET.SubElement(outerRoot, "Contacts")
-def contact_to_xml(parent, row, countact_id):
-    contact = ET.SubElement(parent, "Contact", refId=countact_id)
-    company_legal_name = ET.SubElement(contact, "companyName")
-    company_legal_name.text = str(row.get("company"))  
-    title = ET.SubElement(contact, "title")
-    title.text = str(row["title"])
-    first_name = ET.SubElement(contact, "firstName")
-    first_name.text = "" if pd.isna(row.get("contactFirstName")) else str(row.get("contactFirstName"))
-    last_name = ET.SubElement(contact, "lastName")
-    last_name.text = "" if pd.isna(row.get("contactLastName")) else str(row.get("contactLastName"))
-    addres1 = ET.SubElement(contact, "address1")
-    addres1.text = str(row["address1"])
-    address2 = ET.SubElement(contact, "address2")
-    address2.text = "" if pd.isna(row.get("address2")) else str(row.get("address2"))
-    address3 = ET.SubElement(contact, "address3")
-    address3.text = "" if pd.isna(row.get("address3")) else str(row.get("address3"))
-    city = ET.SubElement(contact, "city")
-    city.text = str(row["city"])
-    state = ET.SubElement(contact, "state")
-    state.text = str(row["state"])
-    zip=ET.SubElement(contact, "zip")
-    zip.text = str(row["zip"])
-    country = ET.SubElement(contact, "country")
-    country.text = str(row["country"])
-    phone = ET.SubElement(contact, "businessPhoneNumber")
-    phone.text = "" if pd.isna(row.get("phone")) else str(row.get("phone"))
-    email = ET.SubElement(contact, "email")
-    email.text = "" if pd.isna(row.get("email")) else str(row.get("email"))
+def contact_to_xml(parent, row, contact_id, contact_columns):
+    contact = ET.SubElement(parent, "Contact", refId=contact_id)
+
+    for col in contact_columns:
+        child = ET.SubElement(contact, col)
+        value = row.get(col)
+        if str(col) != "phone":
+            child.text = "" if pd.isna(value) else str(value) 
+        else:
+            clean_phone = "" if pd.isna(value) else str(value).strip()
+            child.text = clean_phone
     return contact
 
 # Contact ID generator
@@ -110,24 +74,60 @@ def run_program():
     try:
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
-        # (Rest of the XML generation code goes here, using the selected file)
-        messagebox.showinfo("Success", "XML file generated successfully.")
+
+        standard_columns = df.columns[:7]
+        jobPart_columns = df.columns[21:]
+        contact_columns = df.columns[7:20]
 
         outerRoot = ET.Element("import")
         root = ET.SubElement(outerRoot, "JobShipments")
+        contacts = ET.SubElement(outerRoot, "Contacts")
+
         # Iterate over DataFrame rows and build XML
         for _, row in df.iterrows():
             contact_id = next(contact_ids)
-            row_to_xml(root, row, contact_id)
-            contact_to_xml(contacts, row, contact_id)
+            row_to_xml(root, row, contact_id, standard_columns, jobPart_columns)
+            contact_to_xml(contacts, row, contact_id, contact_columns)
 
         # Write XML to file
         tree = ET.ElementTree(outerRoot)
-        output_file = re.sub(r"[\/\\:*?\"<>|]", "_", str(df.iloc[0]["job"]))
-        try:
-            tree.write(f"Shipments for job {output_file}.xml", encoding="utf-8", xml_declaration=True)
-            print("XML file generated successfully.")
-        except Exception as e:
-            print(f"Error writing XML file: {e}")
+        job_number = re.sub(r"[\/\\:*?\"<>|]", "_", str(df.iloc[0]["job"]))
+        output_file = os.path.join(os.path.dirname(file_path), f"{job_number}.xml") # Save to same directory as input file
+        tree.write(output_file, encoding="utf-8", xml_declaration=True) 
+        # Success message
+        result_label.config(text=f"✅ XML file saved to: {output_file}", fg="green")
     except Exception as e:
-        messagebox.showerror("Error", f"Failed to read Excel file: {e}")
+        result_label.config(text=f"❌ Error: {str(e)}", fg="red")
+
+# GUI Setup
+root = tk.Tk()
+root.title("Excel to XML Converter")
+root.geometry("450x200")
+
+file_label = tk.Label(root, text="Select Excel File:")
+file_label.pack(pady=5)
+
+#File path
+file_entry = tk.Entry(root, width=60)
+file_entry.pack(pady=5)
+
+#Browse file function
+def browse_file():
+    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
+    file_entry.delete(0, tk.END) #Clear existing text
+    file_entry.insert(0, file_path) #Insert selected file path
+    result_label.config(text="") #Clear previous result message
+
+#Browse button
+browse_button = tk.Button(root, text="Browse", command=browse_file)
+browse_button.pack(pady=5)
+
+#Run button
+run_button = tk.Button(root, text="Convert to XML", command=run_program)
+run_button.pack(pady=10)
+
+#Result display
+result_label = tk.Label(root, text="", wraplength=450)
+result_label.pack(pady=5)
+
+root.mainloop()
