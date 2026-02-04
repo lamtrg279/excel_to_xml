@@ -6,17 +6,18 @@ import xml.etree.ElementTree as ET
 import re
 
 # JobShipment Section
-def row_to_xml(parent, row, contact_id, standard_columns, jobPart_columns):
+def row_to_xml(parent, row, contact_id, shipment_columns, content_columns):
     element = ET.SubElement(parent, "JobShipment")
 
     job = ET.SubElement(element, "job")
     job.text = str(row["job"])
 
-    for col in standard_columns:
+    for col in shipment_columns:
         child = ET.SubElement(element, col)
         value = row.get(col)
         child.text = "" if pd.isna(value) else str(value) 
     
+
     shipment_contact = ET.SubElement(element, "contactNumber", id=contact_id)
 
     cartons = ET.SubElement(element, "Cartons")
@@ -29,22 +30,36 @@ def row_to_xml(parent, row, contact_id, standard_columns, jobPart_columns):
     add_default_content.text = "false"
     carton_contents = ET.SubElement(carton, "CartonContents")
 
-    for col in jobPart_columns:
+    for col in content_columns:
         value = col 
         qty = row[value]
+
+        # Extract word and number from the 22nd column header
+        match = re.search(r"\s*([A-Za-z]+)\s*(\d+)\s*", value)
+        if match:
+            word = match.group(1).lower()
+            number = match.group(2)
+        
+        word = word[:3] + word[3].upper() + word[4:] if len(word) > 3 else word # Capitalize 4th letter if exists
+
         if not pd.isna(qty) and qty != 0:
             carton_content = ET.SubElement(carton_contents, "CartonContent")
-            jobpart = ET.SubElement(carton_content, "jobPart")
-            jobpart.text = str(value)
+            content = ET.SubElement(carton_content, word)
+            content.text = str(number)
+            if word == "jobPart":
+                jobpart_job = ET.SubElement(carton_content, "jobPartJob")
+                jobpart_job.text = str(row["job"])
+
             quantity = ET.SubElement(carton_content, "quantity")
             quantity.text = "" if pd.isna(qty) else str(qty)
-            jobpart_job = ET.SubElement(carton_content, "jobPartJob")
-            jobpart_job.text = str(row["job"])
     return element
 
 # Contacts Section
 def contact_to_xml(parent, row, contact_id, contact_columns):
     contact = ET.SubElement(parent, "Contact", refId=contact_id)
+    # Global contact false
+    jobContact = ET.SubElement(contact, "jobContact")
+    jobContact.text = "true"    
 
     for col in contact_columns:
         child = ET.SubElement(contact, col)
@@ -75,9 +90,10 @@ def run_program():
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
 
-        standard_columns = df.columns[:7]
-        jobPart_columns = df.columns[21:]
+        shipment_columns = df.columns[:7]
+        content_columns = df.columns[21:]
         contact_columns = df.columns[7:20]
+
 
         outerRoot = ET.Element("import")
         root = ET.SubElement(outerRoot, "JobShipments")
@@ -86,7 +102,7 @@ def run_program():
         # Iterate over DataFrame rows and build XML
         for _, row in df.iterrows():
             contact_id = next(contact_ids)
-            row_to_xml(root, row, contact_id, standard_columns, jobPart_columns)
+            row_to_xml(root, row, contact_id, shipment_columns, content_columns)
             contact_to_xml(contacts, row, contact_id, contact_columns)
 
         # Write XML to file
