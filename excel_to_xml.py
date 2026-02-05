@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import re
 
 # JobShipment Section
-def row_to_xml(parent, row, contact_id, shipment_columns, content_columns):
+def shipment_to_xml(parent, row, contact_id, shipment_columns, content_columns):
     element = ET.SubElement(parent, "JobShipment")
 
     job = ET.SubElement(element, "job")
@@ -16,7 +16,10 @@ def row_to_xml(parent, row, contact_id, shipment_columns, content_columns):
         child = ET.SubElement(element, col)
         value = row.get(col)
         child.text = "" if pd.isna(value) else str(value) 
-    
+
+    if not pd.isna(row.get("accountNumber")) or str(row.get("accountNumber")).strip() != "":
+        forced_account_number = ET.SubElement(element, "forcedAccountNumber")
+        forced_account_number.text = "true"
 
     shipment_contact = ET.SubElement(element, "contactNumber", id=contact_id)
 
@@ -33,7 +36,6 @@ def row_to_xml(parent, row, contact_id, shipment_columns, content_columns):
     for col in content_columns:
         value = col 
         qty = row[value]
-
         # Extract word and number from the 22nd column header
         match = re.search(r"\s*([A-Za-z]+)\s*(\d+)\s*", value)
         if match:
@@ -90,9 +92,9 @@ def run_program():
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
 
-        shipment_columns = df.columns[:7]
-        content_columns = df.columns[21:]
-        contact_columns = df.columns[7:20]
+        shipment_columns = df.columns[:9]
+        content_columns = df.columns[23:]
+        contact_columns = df.columns[9:22]
 
 
         outerRoot = ET.Element("import")
@@ -102,7 +104,7 @@ def run_program():
         # Iterate over DataFrame rows and build XML
         for _, row in df.iterrows():
             contact_id = next(contact_ids)
-            row_to_xml(root, row, contact_id, shipment_columns, content_columns)
+            shipment_to_xml(root, row, contact_id, shipment_columns, content_columns)
             contact_to_xml(contacts, row, contact_id, contact_columns)
 
         # Write XML to file
@@ -117,7 +119,7 @@ def run_program():
 
 # GUI Setup
 root = tk.Tk()
-root.title("Excel to XML Converter")
+root.title("Excel to XML Converter for JobShipment import")
 root.geometry("450x200")
 
 file_label = tk.Label(root, text="Select Excel File:")
