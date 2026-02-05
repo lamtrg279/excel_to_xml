@@ -17,7 +17,7 @@ def shipment_to_xml(parent, row, contact_id, shipment_columns, content_columns):
         value = row.get(col)
         child.text = "" if pd.isna(value) else str(value) 
 
-    if not pd.isna(row.get("accountNumber")) or str(row.get("accountNumber")).strip() != "":
+    if not pd.isna(row.get("accountNumber")) and str(row.get("accountNumber")).strip() != "":
         forced_account_number = ET.SubElement(element, "forcedAccountNumber")
         forced_account_number.text = "true"
 
