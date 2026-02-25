@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['excel_to_xml.py'],
+    ['gui.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -21,7 +21,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='excel_to_xml',
+    name='gui',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,5 +40,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='excel_to_xml',
+    name='gui',
 )
