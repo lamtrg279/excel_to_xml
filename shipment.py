@@ -7,8 +7,6 @@ from helper import safe_text, REQUIRED_COLUMNS
 def shipment_to_xml(parent, row, shipment_columns, content_columns):
     element = ET.SubElement(parent, "JobShipment")
 
-    # ET.SubElement(element, "job").text = safe_text(getattr(row, "job"))
-
     for col in REQUIRED_COLUMNS:
         ET.SubElement(element, col).text = safe_text(getattr(row, col))
 
@@ -22,7 +20,6 @@ def shipment_to_xml(parent, row, shipment_columns, content_columns):
     if not pd.isna(account_number) and str(account_number).strip() != "":
         ET.SubElement(element, "forcedAccountNumber").text = "true"
 
-    # shipment_contact = ET.SubElement(element, "contactNumber", id=contact_id)
     cartons = ET.SubElement(element, "Cartons")
     carton = ET.SubElement(cartons, "Carton")
     ET.SubElement(carton, "count").text = "1"

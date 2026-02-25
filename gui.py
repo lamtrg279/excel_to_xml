@@ -8,13 +8,9 @@ import traceback
 
 from helper import safe_text, validate_columns_rows, REQUIRED_COLUMNS
 from shipment import shipment_to_xml
-# from contact import contact_to_xml, contact_id_generator
-
 
 # Main program logic
 def run_program():
-    # global contact_ids
-    # contact_ids = contact_id_generator() # Reset contact ID generator for each run
     file_path = file_entry.get()
     if not file_path:
         messagebox.showerror("Error", "Please select an Excel file.")
@@ -26,18 +22,14 @@ def run_program():
         validate_columns_rows(df, REQUIRED_COLUMNS)
         df.columns = df.columns.str.replace(r"\s+", "_", regex=True) # Replace spaces with underscores in column names
         shipment_columns = df.columns[:21]
-        # contact_columns = df.columns[9:22]
         content_columns = df.columns[22:]
 
         outerRoot = ET.Element("import")
         root = ET.SubElement(outerRoot, "JobShipments")
-        # contacts = ET.SubElement(outerRoot, "Contacts")
 
         # Iterate over DataFrame rows and build XML
         for row in df.itertuples(index=False):
-            # contact_id = next(contact_ids)
             shipment_to_xml(root, row, shipment_columns, content_columns)
-            # contact_to_xml(contacts, row, contact_id, contact_columns)
 
         # Write XML to file
         tree = ET.ElementTree(outerRoot)
